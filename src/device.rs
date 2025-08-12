@@ -5,7 +5,7 @@ use ledger_lib::{DEFAULT_TIMEOUT, Exchange, LedgerHandle};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-#[allow(asyn_fn_in_trait)]
+#[allow(async_fn_in_trait)]
 pub trait SuiDevice {
     async fn sui_get_public_key(
         &mut self,
@@ -52,8 +52,8 @@ impl SuiDevice for LedgerHandle {
         let mut parameter_list = Vec::new();
         let mut data = HashMap::new();
 
-        for payload in payloads.iter() {}
-        let mut chunk_list = Vec::new();
+        for payload in payloads.iter() {
+            let mut chunk_list = Vec::new();
             for i in (0..payload.len()).step_by(CHUNK_SIZE) {
                 let end = std::cmp::min(i + CHUNK_SIZE, payload.len());
                 let chunk = payload[i..end].to_vec();
