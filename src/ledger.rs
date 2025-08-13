@@ -4,7 +4,9 @@ use crate::errors::AppError;
 use crate::path::{build_bip32_key_payload, split_path};
 use crate::types::*;
 use base64::{Engine as _, engine::general_purpose};
-use ledger_lib::{Device, Filters, LedgerHandle, LedgerProvider, Transport};
+use ledger_lib::info::Model;
+use ledger_lib::transport::TcpInfo;
+use ledger_lib::{Device, Filters, LedgerHandle, LedgerInfo, LedgerProvider, Transport};
 use sui_sdk_types::Ed25519PublicKey;
 use sui_sdk_types::hash::Hasher;
 use sui_sdk_types::{Intent, IntentAppId, IntentScope, IntentVersion};
@@ -33,6 +35,28 @@ pub async fn get_connection() -> Result<(LedgerHandle, ledger_lib::LedgerInfo), 
     Ok((ledger, hardware_device_info))
 }
 
+pub async fn get_test_connection() -> Result<LedgerConnection, AppError> {
+    let mut provider = LedgerProvider::init().await;
+
+    // Give the provider worker thread time to initialize
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    let ledger_info = LedgerInfo {
+        model: Model::NanoSPlus,
+        conn: TcpInfo {
+            addr: "127.0.0.1:9999".parse().unwrap(),
+        }
+        .into(),
+    };
+
+    let ledger = provider.connect(ledger_info.clone()).await.map_err(|e| {
+        AppError::DeviceConnection(format!("Failed to connect to Ledger device: {e}"))
+    })?;
+
+    // Return the working connection with hardware info
+    Ok((ledger, ledger_info))
+}
+
 pub async fn get_public_key(
     derivation_path: &str,
     ledger: &mut LedgerHandle,
@@ -41,7 +65,6 @@ pub async fn get_public_key(
     let response_data = ledger.sui_get_public_key(derivation_path, false).await?;
 
     if response_data.is_empty() {
-        //error!("❌ Empty response from Ledger device");
         return Err(AppError::PublicKeyFailed(
             "Empty response from Ledger device".to_string(),
         ));
@@ -80,15 +103,15 @@ pub async fn get_public_key(
 
 pub async fn sign_transaction(
     derivation_path: String,
-    transaction_bytes: String,
+    transaction_bytes: &str,
     connection: LedgerConnection,
-) -> Result<SignatureResponse, AppError> {
+) -> Result<SignatureResponse, anyhow::Error> {
     // Parse derivation path
     let path_data = build_bip32_key_payload(&derivation_path)?;
 
     // Decode transaction bytes from base64
     let tx_bytes = general_purpose::STANDARD
-        .decode(&transaction_bytes)
+        .decode(transaction_bytes)
         .map_err(|e| {
             AppError::InvalidTransaction(format!("Invalid base64 transaction bytes: {e}"))
         })?;
@@ -105,7 +128,8 @@ pub async fn sign_transaction(
     if pub_key_response.is_empty() {
         return Err(AppError::PublicKeyFailed(
             "Empty public key response from Ledger device".to_string(),
-        ));
+        )
+        .into());
     }
 
     // Parse Sui response format: [key_size][public_key][address_size][address]
@@ -113,7 +137,8 @@ pub async fn sign_transaction(
     if pub_key_response.len() < 1 + key_size || key_size != 32 {
         return Err(AppError::PublicKeyFailed(
             "Invalid public key response from Ledger device".to_string(),
-        ));
+        )
+        .into());
     }
 
     // let public_key_bytes = &pub_key_response[1..1 + key_size];
@@ -142,13 +167,13 @@ pub async fn sign_transaction(
         Ok(data) => data,
         Err(e) => {
             if e.to_string().contains("timeout") || e.to_string().contains("Timeout") {
-                return Err(AppError::DeviceTimeout);
+                return Err(AppError::DeviceTimeout.into());
             } else if e.to_string().contains("6985") {
-                return Err(AppError::UserRejected);
+                return Err(AppError::UserRejected.into());
             } else {
-                return Err(AppError::SignatureFailed(format!(
-                    "Transaction signing failed: {e}"
-                )));
+                return Err(
+                    AppError::SignatureFailed(format!("Transaction signing failed: {e}")).into(),
+                );
             }
         }
     };
@@ -157,7 +182,8 @@ pub async fn sign_transaction(
     if pub_key_for_sig.is_empty() {
         return Err(AppError::PublicKeyFailed(
             "Empty public key response for signature assembly".to_string(),
-        ));
+        )
+        .into());
     }
 
     // Parse public key from response
@@ -165,7 +191,8 @@ pub async fn sign_transaction(
     if pub_key_for_sig.len() < 1 + key_size || key_size != 32 {
         return Err(AppError::PublicKeyFailed(
             "Invalid public key response for signature assembly".to_string(),
-        ));
+        )
+        .into());
     }
 
     let public_key_for_sig = &pub_key_for_sig[1..1 + key_size];
@@ -432,14 +459,6 @@ pub async fn cross_validate_derivation_path(
         bip32_payload_hex: hex::encode(&bip32_payload),
         error: error_msg,
     };
-
-    //info!("✅ Cross-validation derivation path completed");
-    //debug!(
-    //      "📊 Valid: {}, Components: {}",
-    //     response.is_valid,
-    //     response.components.len()
-    // );
-    //debug!("📊 Normalized: '{}'", response.normalized_path);
 
     Ok(response)
 }

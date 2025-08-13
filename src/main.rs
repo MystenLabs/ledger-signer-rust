@@ -5,10 +5,12 @@ pub mod ledger;
 pub mod path;
 pub mod types;
 
+use anyhow::anyhow;
+use ledger_signer::utils::get_dervation_path;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::io::{self, Write};
-use std::panic;
+use serde_json::{Value, json};
+use std::io::{BufRead, Write, stdin, stdout};
+use std::{io, panic};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct JsonRpcRequest {
@@ -37,7 +39,19 @@ pub struct KeysResponse {
 
 #[tokio::main]
 pub async fn main() {
-    panic::set_hook(Box::new(|info| {
+    let reader = stdin();
+    set_panic_hook();
+    let buf_reader = io::BufReader::new(reader);
+    match run_cli(buf_reader).await {
+        Ok(result) => println!("{}", serde_json::to_string(&result).unwrap()),
+        Err(e) => {
+            return_error(&e.to_string());
+        }
+    }
+}
+
+pub fn set_panic_hook() {
+    panic::set_hook(Box::new(move |info| {
         let payload = if let Some(payload) = info.payload().downcast_ref::<String>().or(info
             .payload()
             .downcast_ref::<&str>()
@@ -67,40 +81,38 @@ pub async fn main() {
             },
         });
 
-        let _ = writeln!(io::stdout(), "{json}");
+        let _ = writeln!(stdout(), "{json}");
     }));
+}
 
+pub async fn run_cli<R: BufRead>(buf_reader: R) -> Result<Value, anyhow::Error> {
     if std::env::args().nth(1).as_deref() == Some("call") {
         let JsonRpcRequest {
             jsonrpc: _,
             method,
             params,
             id: _,
-        } = read_json_line().expect("Unable to deserialize request");
+        } = read_json_line(buf_reader).expect("Unable to deserialize request");
 
         if method.is_empty() {
-            return return_error("method is required");
+            return Err(anyhow::anyhow!("Method is required"));
         }
 
         match method.as_str() {
-            "create_key" => {
-                return_error("create_key command is not implemented yet");
-            }
-            "sign_hashed" => {
-                return_error("sign_hashed command is not supported");
-            }
+            "create_key" => Err(anyhow!("create_key command is not implemented yet")),
+            "sign_hashed" => Err(anyhow!("sign_hashed command is not supported")),
             "sign" => {
                 let connection = ledger::get_connection().await.unwrap();
                 let args = serde_json::from_value::<SignArgs>(params)
                     .expect("Failed to parse sign_hashed arguments");
                 if args.key_id.is_empty() {
-                    return_error("key id is required");
+                    Err(anyhow!("key id is required"))
                 } else if args.msg.is_empty() {
-                    return_error("base64 encoded message to sign is required");
+                    Err(anyhow!("base64 encoded message to sign is required"))
                 } else {
-                    ledger::sign_transaction(args.key_id, args.msg, connection)
-                        .await
-                        .expect("Failed to sign transaction");
+                    Ok(serde_json::to_value(
+                        ledger::sign_transaction(args.key_id, &args.msg, connection).await?,
+                    )?)
                 }
             }
             "keys" => {
@@ -117,15 +129,9 @@ pub async fn main() {
                         key_id: derivation_path,
                     })
                 }
-
-                let response = KeysResponse { keys };
-                let json_response =
-                    serde_json::to_string(&response).expect("Failed to serialize keys response");
-                println!("{json_response}");
+                Ok(serde_json::to_value(KeysResponse { keys })?)
             }
-            _ => {
-                return_error("invalid method");
-            }
+            _ => Err(anyhow!("Invalid method: {}", method)),
         }
     } else {
         eprintln!("This script is meant to be called with 'call' as the first argument");
@@ -134,22 +140,19 @@ pub async fn main() {
 }
 
 fn return_error(message: &str) {
-    let error_response = json!({
-        "error": {
-            "code": 1,
-            "message": message,
-        },
-    });
-    println!("{error_response}");
+    println!(
+        "{}",
+        json!({
+            "error": {
+                "code": 1,
+                "message": message,
+            },
+        })
+    );
 }
 
-pub fn get_dervation_path(index: u32) -> String {
-    // 44'/784'/0'/0'/0'
-    format!("44'/784'/0'/0'/{index}'")
-}
-
-pub fn read_json_line() -> Result<JsonRpcRequest, serde_json::Error> {
+pub fn read_json_line<R: BufRead>(mut buf_reader: R) -> Result<JsonRpcRequest, serde_json::Error> {
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    buf_reader.read_line(&mut input).unwrap();
     serde_json::from_str(&input)
 }

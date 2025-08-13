@@ -7,6 +7,13 @@ pub const GET_VERSION_INS: u8 = 0x00;
 pub const SIGN_TRANSACTION_INS: u8 = 0x03;
 pub const CHUNK_SIZE: usize = 180;
 
+// Emulator/test constants
+pub const EMULATOR_HOST: &str = "127.0.0.1";
+pub const EMULATOR_PORT: u16 = 5001;
+pub const EMULATOR_BUTTON_BASE_URL: &str = "http://127.0.0.1:5001/button";
+pub const EMULATOR_EVENTS_URL: &str = "http://127.0.0.1:5001/events";
+pub const EMULATOR_MAX_ATTEMPTS: u32 = 10;
+
 // Sui chunking protocol enums (from TypeScript SDK)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LedgerToHost {
