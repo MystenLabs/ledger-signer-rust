@@ -68,57 +68,59 @@ pub fn set_panic_hook() {
     }));
 }
 
-pub async fn run_cli<R: BufRead>(buf_reader: R) -> Result<Value, anyhow::Error> {
+pub fn check_subcommand() {
     if std::env::args().nth(1).as_deref() == Some("call") {
-        let JsonRpcRequest {
-            jsonrpc: _,
-            method,
-            params,
-            id: _,
-        } = read_json_line(buf_reader).expect("Unable to deserialize request");
-
-        if method.is_empty() {
-            return Err(anyhow::anyhow!("Method is required"));
-        }
-
-        match method.as_str() {
-            "create_key" => Err(anyhow!("create_key command is not implemented yet")),
-            "sign_hashed" => Err(anyhow!("sign_hashed command is not supported")),
-            "sign" => {
-                let connection = ledger::get_connection().await.unwrap();
-                let args = serde_json::from_value::<SignArgs>(params)
-                    .expect("Failed to parse sign_hashed arguments");
-                if args.key_id.is_empty() {
-                    Err(anyhow!("key id is required"))
-                } else if args.msg.is_empty() {
-                    Err(anyhow!("base64 encoded message to sign is required"))
-                } else {
-                    Ok(serde_json::to_value(
-                        ledger::sign_transaction(args.key_id, &args.msg, connection).await?,
-                    )?)
-                }
-            }
-            "keys" => {
-                let mut connection = ledger::get_connection().await.unwrap();
-                let mut keys = vec![];
-                for i in 0..5 {
-                    let derivation_path = get_dervation_path(i);
-
-                    keys.push(Key {
-                        public_key: ledger::get_public_key(&derivation_path, &mut connection.0)
-                            .await
-                            .expect("Failed to get public key")
-                            .public_key,
-                        key_id: derivation_path,
-                    })
-                }
-                Ok(serde_json::to_value(KeysResponse { keys })?)
-            }
-            _ => Err(anyhow!("Invalid method: {}", method)),
-        }
-    } else {
         eprintln!("This script is meant to be called with 'call' as the first argument");
         std::process::exit(1);
+    }
+}
+
+pub async fn run_cli<R: BufRead>(buf_reader: R) -> Result<Value, anyhow::Error> {
+    let JsonRpcRequest {
+        jsonrpc: _,
+        method,
+        params,
+        id: _,
+    } = read_json_line(buf_reader).expect("Unable to deserialize request");
+
+    if method.is_empty() {
+        return Err(anyhow::anyhow!("Method is required"));
+    }
+
+    match method.as_str() {
+        "create_key" => Err(anyhow!("create_key command is not implemented yet")),
+        "sign_hashed" => Err(anyhow!("sign_hashed command is not supported")),
+        "sign" => {
+            let connection = ledger::get_connection().await.unwrap();
+            let args = serde_json::from_value::<SignArgs>(params)
+                .expect("Failed to parse sign_hashed arguments");
+            if args.key_id.is_empty() {
+                Err(anyhow!("key id is required"))
+            } else if args.msg.is_empty() {
+                Err(anyhow!("base64 encoded message to sign is required"))
+            } else {
+                Ok(serde_json::to_value(
+                    ledger::sign_transaction(args.key_id, &args.msg, connection).await?,
+                )?)
+            }
+        }
+        "keys" => {
+            let mut connection = ledger::get_connection().await.unwrap();
+            let mut keys = vec![];
+            for i in 0..5 {
+                let derivation_path = get_dervation_path(i);
+
+                keys.push(Key {
+                    public_key: ledger::get_public_key(&derivation_path, &mut connection.0)
+                        .await
+                        .expect("Failed to get public key")
+                        .public_key,
+                    key_id: derivation_path,
+                })
+            }
+            Ok(serde_json::to_value(KeysResponse { keys })?)
+        }
+        _ => Err(anyhow!("Invalid method: {}", method)),
     }
 }
 

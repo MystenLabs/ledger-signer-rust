@@ -13,6 +13,8 @@ use std::io::stdin;
 
 #[tokio::main]
 pub async fn main() {
+    cli::check_subcommand();
+
     let reader = stdin();
     set_panic_hook();
     let buf_reader = io::BufReader::new(reader);
