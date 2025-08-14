@@ -18,7 +18,16 @@ pub fn build_bip32_key_payload(path: &str) -> AppResult<Vec<u8>> {
 pub fn split_path(path: &str) -> AppResult<Vec<u32>> {
     let mut result = Vec::new();
 
-    for component in path.split('/') {
+    for (i, component) in path.split('/').enumerate() {
+        if i == 0 {
+            if component != "m" {
+                return Err(AppError::InvalidDerivationPath(
+                    "Derivation path must start with 'm'".to_string(),
+                ));
+            }
+            continue;
+        }
+
         if component.is_empty() {
             continue;
         }

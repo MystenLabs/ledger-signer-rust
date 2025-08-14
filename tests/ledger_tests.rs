@@ -36,7 +36,6 @@ async fn test_get_public_key() {
         "Failed to get public key: {:?}",
         public_key.err()
     );
-    print!("Public Key: {}\n", public_key.unwrap().public_key);
 }
 
 #[tokio::test]

@@ -18,10 +18,12 @@ pub async fn main() {
     let reader = stdin();
     set_panic_hook();
     let buf_reader = io::BufReader::new(reader);
-    match run_cli(buf_reader).await {
+    let ledger_conn = ledger::get_connection().await.unwrap();
+
+    match run_cli(buf_reader, ledger_conn).await {
         Ok(result) => println!("{}", serde_json::to_string(&result).unwrap()),
-        Err(e) => {
-            return_error(&e.to_string());
+        Err((e, id)) => {
+            return_error(&e.to_string(), id);
         }
     }
 }

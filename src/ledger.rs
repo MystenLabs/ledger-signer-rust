@@ -60,23 +60,23 @@ pub async fn get_test_connection() -> Result<LedgerConnection, AppError> {
 pub async fn get_public_key(
     derivation_path: &str,
     ledger: &mut LedgerHandle,
-) -> Result<PublicKeyResponse, AppError> {
+) -> Result<PublicKeyResponse, anyhow::Error> {
     // Get public key using Sui trait with chunking protocol (no display on device)
     let response_data = ledger.sui_get_public_key(derivation_path, false).await?;
 
     if response_data.is_empty() {
-        return Err(AppError::PublicKeyFailed(
-            "Empty response from Ledger device".to_string(),
-        ));
+        return Err(
+            AppError::PublicKeyFailed("Empty response from Ledger device".to_string()).into(),
+        );
     }
 
     // Parse Sui response format: [key_size][public_key][address_size][address]
     let key_size = response_data[0] as usize;
 
     if response_data.len() < 1 + key_size {
-        return Err(AppError::PublicKeyFailed(
-            "Invalid response from Ledger device".to_string(),
-        ));
+        return Err(
+            AppError::PublicKeyFailed("Invalid response from Ledger device".to_string()).into(),
+        );
     }
 
     // Extract public key
@@ -94,7 +94,10 @@ pub async fn get_public_key(
     let sui_address = ed25519_pubkey.derive_address();
 
     let response = PublicKeyResponse {
-        public_key: public_key_b64,
+        key_id: derivation_path.to_string(),
+        public_key: PublicKey {
+            ed25519: public_key_b64,
+        },
         sui_address: sui_address.to_string(),
     };
 
@@ -469,12 +472,6 @@ pub async fn analyze_transaction_bytes(
     use bcs;
     use sui_sdk_types::{Command, Input, Transaction, TransactionKind};
 
-    //info!("🔍 Analyzing transaction bytes");
-    //info!(
-    //      "📝 Transaction bytes length: {} chars",
-    //      transaction_bytes_base64.len()
-    //  );
-
     // Decode transaction bytes from base64
     let transaction_bytes = general_purpose::STANDARD
         .decode(&transaction_bytes_base64)
@@ -482,13 +479,9 @@ pub async fn analyze_transaction_bytes(
             AppError::InvalidTransaction(format!("Invalid base64 transaction bytes: {e}"))
         })?;
 
-    //info!("✅ Transaction decoded: {} bytes", transaction_bytes.len());
-
     // Deserialize transaction using BCS
-    let transaction: Transaction = bcs::from_bytes(&transaction_bytes).map_err(|e| {
-        //error!("❌ Failed to deserialize transaction: {}", e);
-        AppError::InvalidTransaction(format!("Failed to parse transaction: {e}"))
-    })?;
+    let transaction: Transaction = bcs::from_bytes(&transaction_bytes)
+        .map_err(|e| AppError::InvalidTransaction(format!("Failed to parse transaction: {e}")))?;
 
     // Extract transaction details
     let sender = transaction.sender.to_string();

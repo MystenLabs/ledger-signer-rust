@@ -1,9 +1,48 @@
 //! API response types for Ledger Signer
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JsonRpcRequest {
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: serde_json::Value,
+    pub id: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JsonRpcResponse {
+    pub jsonrpc: String,
+    pub result: Value,
+    pub id: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SignArgs {
+    pub key_id: String,
+    pub msg: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PublicKeyArgs {
+    pub key_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct KeysResponse {
+    pub keys: Vec<PublicKeyResponse>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PublicKey {
+    #[serde(rename = "Ed25519")]
+    pub ed25519: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PublicKeyResponse {
-    pub public_key: String,
+    pub key_id: String,
+    pub public_key: PublicKey,
     pub sui_address: String,
 }
 
