@@ -9,7 +9,7 @@ use std::{
     panic,
 };
 
-pub fn set_panic_hook() {
+pub fn set_panic_hook(id: u64) {
     panic::set_hook(Box::new(move |info| {
         let payload = if let Some(payload) = info.payload().downcast_ref::<String>().or(info
             .payload()
@@ -39,7 +39,7 @@ pub fn set_panic_hook() {
                     "location": location,
                 }
             },
-            "id": 0,
+            "id": id,
         });
 
         let _ = writeln!(stdout(), "{json}");

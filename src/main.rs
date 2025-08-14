@@ -16,7 +16,8 @@ pub async fn main() {
     cli::check_subcommand();
 
     let reader = stdin();
-    set_panic_hook();
+    // TODO id should come from jsonrpc request
+    set_panic_hook(0);
     let buf_reader = io::BufReader::new(reader);
     let ledger_conn = ledger::get_connection().await.unwrap();
 
