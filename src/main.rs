@@ -19,9 +19,8 @@ pub async fn main() {
     // TODO id should come from jsonrpc request
     set_panic_hook(0);
     let buf_reader = io::BufReader::new(reader);
-    let ledger_conn = ledger::get_connection().await.unwrap();
 
-    match run_cli(buf_reader, ledger_conn).await {
+    match run_cli(buf_reader, ledger::ConnectionType::Auto).await {
         Ok(result) => println!("{}", serde_json::to_string(&result).unwrap()),
         Err((e, id)) => {
             return_error(&e.to_string(), id);

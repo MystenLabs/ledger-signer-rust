@@ -14,7 +14,18 @@ use sui_sdk_types::{Intent, IntentAppId, IntentScope, IntentVersion};
 // Global state for Ledger connection
 pub type LedgerConnection = (LedgerHandle, ledger_lib::LedgerInfo);
 
-pub async fn get_connection() -> Result<(LedgerHandle, ledger_lib::LedgerInfo), AppError> {
+pub enum ConnectionType {
+    Auto,
+    Tcp(u16),
+}
+
+pub async fn get_connection(
+    connection_type: ConnectionType,
+) -> Result<(LedgerHandle, ledger_lib::LedgerInfo), anyhow::Error> {
+    if let ConnectionType::Tcp(port) = connection_type {
+        return get_tcp_connection(port).await;
+    }
+
     let mut provider = LedgerProvider::init().await;
 
     // Give the provider worker thread time to initialize
@@ -23,7 +34,7 @@ pub async fn get_connection() -> Result<(LedgerHandle, ledger_lib::LedgerInfo), 
     let devices = provider.list(Filters::Any).await?;
 
     if devices.is_empty() {
-        return Err(AppError::DeviceNotFound);
+        return Err(AppError::DeviceNotFound.into());
     }
 
     let hardware_device_info = devices[0].clone(); // Store hardware info
@@ -35,7 +46,7 @@ pub async fn get_connection() -> Result<(LedgerHandle, ledger_lib::LedgerInfo), 
     Ok((ledger, hardware_device_info))
 }
 
-pub async fn get_test_connection() -> Result<LedgerConnection, AppError> {
+pub async fn get_tcp_connection(port: u16) -> Result<LedgerConnection, anyhow::Error> {
     let mut provider = LedgerProvider::init().await;
 
     // Give the provider worker thread time to initialize
@@ -44,7 +55,7 @@ pub async fn get_test_connection() -> Result<LedgerConnection, AppError> {
     let ledger_info = LedgerInfo {
         model: Model::NanoSPlus,
         conn: TcpInfo {
-            addr: "127.0.0.1:9999".parse().unwrap(),
+            addr: format!("127.0.0.1:{}", port).parse().unwrap(),
         }
         .into(),
     };

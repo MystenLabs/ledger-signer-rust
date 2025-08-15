@@ -3,7 +3,7 @@ Warning these tests require a running emulator or ledger device.
 */
 use base64::{Engine as _, engine::general_purpose};
 use ledger_signer::{
-    ledger::{get_public_key, get_test_connection, sign_transaction},
+    ledger::{get_public_key, get_tcp_connection, sign_transaction},
     utils::get_dervation_path,
 };
 
@@ -16,7 +16,7 @@ async fn test_get_test_connection() {
 
     // This test is for demonstration purposes only
     // In practice, you would use a mock or a real Ledger device
-    let result = get_test_connection().await;
+    let result = get_tcp_connection(9999).await;
     assert!(
         result.is_ok(),
         "Failed to get test connection: {:?}",
@@ -28,7 +28,7 @@ async fn test_get_test_connection() {
 async fn test_get_public_key() {
     let _mgr = LedgerManager::acquire().await;
 
-    let mut connection = get_test_connection().await.unwrap();
+    let mut connection = get_tcp_connection(9999).await.unwrap();
     let derivation_path = get_dervation_path(0);
     let public_key = get_public_key(&derivation_path, &mut connection.0).await;
     assert!(
@@ -44,7 +44,7 @@ async fn test_sign_transaction() {
 
     mgr.enable_blind_signing().await.unwrap();
 
-    let connection = get_test_connection().await.unwrap();
+    let connection = get_tcp_connection(9999).await.unwrap();
     let derivation_path = get_dervation_path(0);
 
     let message = "message";

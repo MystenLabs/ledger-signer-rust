@@ -1,5 +1,4 @@
 use crate::ledger;
-use crate::ledger::LedgerConnection;
 use crate::types::*;
 use crate::utils::get_dervation_path;
 use anyhow::anyhow;
@@ -55,7 +54,7 @@ pub fn check_subcommand() {
 
 pub async fn run_cli<R: BufRead>(
     buf_reader: R,
-    ledger_conn: LedgerConnection,
+    ledger_conn_type: ledger::ConnectionType,
 ) -> Result<Value, (anyhow::Error, u64)> {
     let JsonRpcRequest {
         jsonrpc: _,
@@ -70,7 +69,7 @@ pub async fn run_cli<R: BufRead>(
 
     Ok(serde_json::to_value(JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
-        result: handle_request(&method, params, ledger_conn)
+        result: handle_request(&method, params, ledger_conn_type)
             .await
             .map_err(|e| (e, id))?,
         id,
@@ -81,12 +80,14 @@ pub async fn run_cli<R: BufRead>(
 pub async fn handle_request(
     method: &str,
     params: Value,
-    mut ledger_conn: LedgerConnection,
+    ledger_conn_type: ledger::ConnectionType,
 ) -> Result<Value, anyhow::Error> {
     match method {
         "create_key" => Err(anyhow!("create_key command is not implemented yet")),
         "sign_hashed" => Err(anyhow!("sign_hashed command is not supported")),
         "sign" => {
+            let ledger_conn = ledger::get_connection(ledger_conn_type).await?;
+
             let args = serde_json::from_value::<SignArgs>(params)
                 .expect("Failed to parse sign_hashed arguments");
             if args.key_id.is_empty() {
@@ -100,6 +101,8 @@ pub async fn handle_request(
             }
         }
         "keys" => {
+            let mut ledger_conn = ledger::get_connection(ledger_conn_type).await?;
+
             let mut keys = vec![];
             for i in 0..10 {
                 let derivation_path = get_dervation_path(i);
@@ -113,6 +116,8 @@ pub async fn handle_request(
             Ok(serde_json::to_value(KeysResponse { keys })?)
         }
         "public_key" => {
+            let mut ledger_conn = ledger::get_connection(ledger_conn_type).await?;
+
             let args = serde_json::from_value::<PublicKeyArgs>(params)
                 .expect("Failed to parse sign_hashed arguments");
             Ok(serde_json::to_value(
