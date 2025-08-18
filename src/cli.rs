@@ -1,7 +1,7 @@
 use crate::ledger;
 use crate::types::*;
 use crate::utils::get_dervation_path;
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, Write, stdout},
@@ -88,8 +88,8 @@ pub async fn handle_request(
         "sign" => {
             let ledger_conn = ledger::get_connection(ledger_conn_type).await?;
 
-            let args = serde_json::from_value::<SignArgs>(params)
-                .expect("Failed to parse sign_hashed arguments");
+            let args: SignParams =
+                serde_json::from_value(params).context("Failed to deserialize sign params")?;
             if args.key_id.is_empty() {
                 Err(anyhow!("key id is required"))
             } else if args.msg.is_empty() {
@@ -97,7 +97,8 @@ pub async fn handle_request(
             } else {
                 Ok(serde_json::to_value(
                     ledger::sign_transaction(args.key_id, &args.msg, ledger_conn).await?,
-                )?)
+                )
+                .context("Unable to serialize sign transaction response")?)
             }
         }
         "keys" => {
@@ -107,19 +108,15 @@ pub async fn handle_request(
             for i in 0..10 {
                 let derivation_path = get_dervation_path(i);
 
-                keys.push(
-                    ledger::get_public_key(&derivation_path, &mut ledger_conn.0)
-                        .await
-                        .expect("Failed to get public key"),
-                )
+                keys.push(ledger::get_public_key(&derivation_path, &mut ledger_conn.0).await?)
             }
             Ok(serde_json::to_value(KeysResponse { keys })?)
         }
         "public_key" => {
             let mut ledger_conn = ledger::get_connection(ledger_conn_type).await?;
 
-            let args = serde_json::from_value::<PublicKeyArgs>(params)
-                .expect("Failed to parse sign_hashed arguments");
+            let args = serde_json::from_value::<PublicKeyParams>(params)
+                .context("Failed to deserialize public_key params")?;
             Ok(serde_json::to_value(
                 ledger::get_public_key(&args.key_id, &mut ledger_conn.0).await?,
             )?)

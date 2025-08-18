@@ -8,6 +8,7 @@ mod ledger_manager;
 use ledger_manager::LedgerManager;
 use ledger_signer::{ledger, utils};
 
+// first key in the hardcoded seed "abandon abandon abandon ..." given to the speculos emulator
 fn first_key() -> serde_json::Value {
     json![{
         "key_id": utils::get_dervation_path(0),

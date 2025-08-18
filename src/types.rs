@@ -18,13 +18,13 @@ pub struct JsonRpcResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SignArgs {
+pub struct SignParams {
     pub key_id: String,
     pub msg: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PublicKeyArgs {
+pub struct PublicKeyParams {
     pub key_id: String,
 }
 
