@@ -1,5 +1,7 @@
 ## Install the Signer
 
+Add this repo to your local `PATH`.
+
 ```bash
 git clone git@github.com:MystenLabs/ledger-signer-rust.git
 cd ledger-signer-rust
@@ -7,6 +9,8 @@ cargo install --path .
 ```
 
 ## Install the CLI Branch
+
+Install the `external-keys-cli-support` branch of the Sui CLI to use the external keys feature.
 
 ```bash
 suiup install --nightly external-keys-cli-support
