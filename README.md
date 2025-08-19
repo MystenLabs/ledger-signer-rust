@@ -1,3 +1,7 @@
+# Ledger Rust Signer
+
+EXPERIMENTAL use at own risk.
+
 ## Install the Signer
 
 Add this repo to your local `PATH`.
