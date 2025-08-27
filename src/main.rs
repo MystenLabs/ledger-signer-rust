@@ -5,7 +5,6 @@ pub mod errors;
 pub mod ledger;
 pub mod path;
 pub mod types;
-pub mod utils;
 
 use crate::cli::{return_error, run_cli, set_panic_hook};
 use std::io;

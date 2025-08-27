@@ -21,9 +21,10 @@ pub fn split_path(path: &str) -> AppResult<Vec<u32>> {
     for (i, component) in path.split('/').enumerate() {
         if i == 0 {
             if component != "m" {
-                return Err(AppError::InvalidDerivationPath(
-                    "Derivation path must start with 'm'".to_string(),
-                ));
+                return Err(AppError::InvalidDerivationPath(format!(
+                    "Derivation path must start with 'm', found '{}'",
+                    component
+                )));
             }
             continue;
         }
@@ -79,4 +80,9 @@ pub fn split_path(path: &str) -> AppResult<Vec<u32>> {
     }
 
     Ok(result)
+}
+
+pub fn get_dervation_path(index: u32) -> String {
+    // 44'/784'/0'/0'/0'
+    format!("m/44'/784'/0'/0'/{index}'")
 }

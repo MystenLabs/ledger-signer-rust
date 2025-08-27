@@ -1,6 +1,6 @@
 use crate::ledger;
+use crate::path::get_dervation_path;
 use crate::types::*;
-use crate::utils::get_dervation_path;
 use anyhow::{Context, anyhow};
 use serde_json::{Value, json};
 use std::{
@@ -86,7 +86,7 @@ pub async fn handle_request(
         "create_key" => Err(anyhow!("create_key command is not implemented yet")),
         "sign_hashed" => Err(anyhow!("sign_hashed command is not supported")),
         "sign" => {
-            let ledger_conn = ledger::get_connection(ledger_conn_type).await?;
+            let mut ledger_conn = ledger::get_connection(ledger_conn_type).await?;
 
             let args: SignParams =
                 serde_json::from_value(params).context("Failed to deserialize sign params")?;
@@ -96,7 +96,7 @@ pub async fn handle_request(
                 Err(anyhow!("base64 encoded message to sign is required"))
             } else {
                 Ok(serde_json::to_value(
-                    ledger::sign_transaction(args.key_id, &args.msg, ledger_conn).await?,
+                    ledger::sign_transaction(args.key_id, &args.msg, &mut ledger_conn).await?,
                 )
                 .context("Unable to serialize sign transaction response")?)
             }
