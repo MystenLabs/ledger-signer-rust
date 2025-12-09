@@ -26,7 +26,7 @@ First connect, unlock and open the sui app on your ledger device.
 
 ```bash
 
-sui external-keys list-keys
+sui external-keys list-keys ledger-signer
 # ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 # │ ╭───────────┬────────────────────────────────────────────────────────────────────────────────────────────╮ │
 # │ │ keyId     │  **m/44'/784'/0'/0'/0'**                                                                       │ │
